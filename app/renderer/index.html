@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Claude GLM</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+  <!-- Title Bar -->
+  <div class="titlebar">
+    <div class="titlebar-drag">
+      <div class="titlebar-logo">
+        <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+          <rect x="1" y="1" width="16" height="16" rx="4" fill="#D97757"/>
+          <path d="M6 7.5L8.5 12L12 6" stroke="white" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </div>
+      <span class="titlebar-title">Claude GLM</span>
+    </div>
+    <div class="titlebar-controls">
+      <button class="titlebar-btn" id="settingsBtn" title="Settings">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+          <path d="M8 10a2 2 0 100-4 2 2 0 000 4z" stroke="currentColor" stroke-width="1.5"/>
+          <path d="M13.4 10a1.1 1.1 0 00.2 1.2l.04.04a1.34 1.34 0 11-1.9 1.9l-.04-.04a1.1 1.1 0 00-1.2-.2 1.1 1.1 0 00-.67 1.01v.11a1.34 1.34 0 01-2.68 0v-.06a1.1 1.1 0 00-.72-1.01 1.1 1.1 0 00-1.2.2l-.04.04a1.34 1.34 0 11-1.9-1.9l.04-.04a1.1 1.1 0 00.2-1.2 1.1 1.1 0 00-1.01-.67h-.11a1.34 1.34 0 010-2.68h.06a1.1 1.1 0 001.01-.72 1.1 1.1 0 00-.2-1.2l-.04-.04a1.34 1.34 0 111.9-1.9l.04.04a1.1 1.1 0 001.2.2h.05a1.1 1.1 0 00.67-1.01v-.11a1.34 1.34 0 012.68 0v.06a1.1 1.1 0 00.72 1.01 1.1 1.1 0 001.2-.2l.04-.04a1.34 1.34 0 111.9 1.9l-.04.04a1.1 1.1 0 00-.2 1.2v.05a1.1 1.1 0 001.01.67h.11a1.34 1.34 0 010 2.68h-.06a1.1 1.1 0 00-1.01.72z" stroke="currentColor" stroke-width="1.2"/>
+        </svg>
+      </button>
+      <button class="titlebar-btn" id="minimizeBtn" title="Minimize to tray">
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+          <path d="M3 7h8" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+        </svg>
+      </button>
+      <button class="titlebar-btn close-btn" id="closeBtn" title="Hide to tray">
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+          <path d="M4 4l6 6M10 4l-6 6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+        </svg>
+      </button>
+    </div>
+  </div>
+
+  <!-- Content -->
+  <div class="content">
+
+    <!-- API Key Warning -->
+    <div class="api-warning hidden" id="apiKeyWarning">
+      <div class="api-warning-icon">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+          <path d="M8 4v4M8 11h.007" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+          <path d="M2.5 13.5h11L14 3 8 1 2 3l.5 10.5z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/>
+        </svg>
+      </div>
+      <span>API key not set — open Settings to add your Z.AI key</span>
+    </div>
+
+    <!-- Server Card -->
+    <div class="server-card" id="serverCard">
+      <div class="server-row">
+        <div class="server-info">
+          <div class="status-indicator">
+            <div class="status-dot" id="statusDot"></div>
+            <div class="status-pulse" id="statusPulse"></div>
+          </div>
+          <div class="server-text">
+            <div class="server-title">Proxy Server</div>
+            <div class="server-subtitle">localhost:<span class="mono">9147</span></div>
+          </div>
+        </div>
+        <div class="server-meta">
+          <div class="status-label" id="statusLabel">Checking...</div>
+          <div class="uptime-label" id="uptimeLabel"></div>
+        </div>
+      </div>
+      <button class="server-btn" id="serverBtn">
+        <span class="server-btn-icon" id="serverBtnIcon">
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+            <path d="M4 2.5v9l7.5-4.5L4 2.5z" fill="currentColor"/>
+          </svg>
+        </span>
+        <span id="serverBtnText">Start Server</span>
+      </button>
+    </div>
+
+    <!-- Models Section -->
+    <div class="section-header">
+      <h2>Launch Claude Code</h2>
+      <span class="section-hint">Select a GLM model</span>
+    </div>
+
+    <div class="models-list" id="modelsList"></div>
+
+  </div>
+
+  <!-- Settings Overlay -->
+  <div class="overlay hidden" id="settingsOverlay">
+    <div class="settings-panel">
+      <div class="settings-header">
+        <h2>Settings</h2>
+        <button class="titlebar-btn" id="settingsCloseBtn">
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+            <path d="M4 4l6 6M10 4l-6 6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+          </svg>
+        </button>
+      </div>
+
+      <div class="settings-body">
+        <div class="settings-group">
+          <label class="settings-label">Z.AI API Key</label>
+          <input
+            type="password"
+            class="settings-input"
+            id="apiKeyInput"
+            placeholder="Enter your Z.AI API key"
+            spellcheck="false"
+            autocomplete="off"
+          />
+          <div class="settings-hint">
+            Get one at <span class="mono">open.bigmodel.cn/usercenter/apikeys</span>
+          </div>
+          <button class="settings-save-btn" id="saveApiKeyBtn">Save Key</button>
+        </div>
+
+        <div class="settings-group">
+          <label class="settings-label">Proxy Port</label>
+          <input
+            type="text"
+            class="settings-input"
+            id="proxyPortInput"
+            value="9147"
+            disabled
+          />
+          <div class="settings-hint">Configured in proxy.js</div>
+        </div>
+
+        <div class="settings-group">
+          <label class="settings-label">Proxy Script</label>
+          <div class="settings-path mono" id="proxyPathDisplay">Loading...</div>
+        </div>
+
+        <div class="settings-group">
+          <label class="settings-label">System</label>
+          <div class="settings-row">
+            <span>Node.js</span>
+            <span class="mono" id="nodeVersion">—</span>
+          </div>
+          <div class="settings-row">
+            <span>Claude Code</span>
+            <span class="mono" id="claudeVersion">—</span>
+          </div>
+        </div>
+      </div>
+
+      <button class="settings-quit-btn" id="quitBtn">Quit Application</button>
+    </div>
+  </div>
+
+  <!-- Toast Container -->
+  <div class="toast-container" id="toastContainer"></div>
+
+  <script src="app.js"></script>
+</body>
+</html>

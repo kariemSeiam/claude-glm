@@ -1,0 +1,34 @@
+const { contextBridge, ipcRenderer } = require("electron");
+
+contextBridge.exposeInMainWorld("claudeGLM", {
+  // Proxy management
+  checkStatus: () => ipcRenderer.invoke("check-status"),
+  startProxy: () => ipcRenderer.invoke("start-proxy"),
+  stopProxy: () => ipcRenderer.invoke("stop-proxy"),
+
+  // Claude Code launch
+  launchClaude: (model) => ipcRenderer.invoke("launch-claude", model),
+
+  // API key
+  getApiKey: () => ipcRenderer.invoke("get-api-key"),
+  setApiKey: (key) => ipcRenderer.invoke("set-api-key", key),
+
+  // Platform info
+  getPlatform: () => ipcRenderer.invoke("get-platform"),
+
+  // Window
+  minimize: () => ipcRenderer.invoke("minimize-window"),
+  close: () => ipcRenderer.invoke("close-window"),
+  show: () => ipcRenderer.invoke("show-window"),
+  quit: () => ipcRenderer.invoke("quit-app"),
+
+  // Events
+  onProxyStatusChanged: (callback) => {
+    ipcRenderer.on("proxy-status-changed", (_, running, uptime) =>
+      callback(running, uptime)
+    );
+  },
+  onUptimeUpdate: (callback) => {
+    ipcRenderer.on("uptime-update", (_, uptime) => callback(uptime));
+  },
+});
