@@ -1,0 +1,4 @@
+node_modules/
+.venom/
+dist/
+*.log
