@@ -82,6 +82,8 @@ Prices per 1M tokens (input/output). Billed by Z.AI, not Anthropic.
 
 A system tray app that manages the proxy and launches Claude Code from a GUI. No terminal needed to start.
 
+<p align="center"><img src="assets/screenshot.png" alt="Claude GLM Desktop App" width="420"></p>
+
 ```bash
 ./claude-glm-app.sh
 ```
