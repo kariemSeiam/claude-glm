@@ -22,6 +22,7 @@ const http = require("http");
 const fs = require("fs");
 const zlib = require("zlib");
 const os = require("os");
+const sessionReader = require("./session-reader");
 
 // Suppress EPIPE crashes — child process pipes can break after exit
 process.on("uncaughtException", (err) => {
@@ -576,6 +577,18 @@ function setupIPC() {
   ipcMain.handle("close-window", async () => { mainWindow?.hide(); });
   ipcMain.handle("show-window", async () => { mainWindow?.show(); mainWindow?.focus(); });
   ipcMain.handle("quit-app", async () => { app.quitting = true; await stopProxy(); app.quit(); });
+
+  // Session reading
+  ipcMain.handle("get-sessions", async () => sessionReader.getAllSessions());
+  ipcMain.handle("get-session-messages", async (_, sessionId, projectDir) =>
+    sessionReader.getSessionMessages(sessionId, projectDir)
+  );
+  ipcMain.handle("get-usage-summary", async (_, days) =>
+    sessionReader.getUsageSummary(days || 7)
+  );
+  ipcMain.handle("get-session-stats", async (_, sessionId, projectDir) =>
+    sessionReader.getSessionStats(sessionId, projectDir)
+  );
 }
 
 // ── Single Instance ────────────────────────────────────
