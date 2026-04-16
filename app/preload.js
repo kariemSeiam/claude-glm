@@ -31,6 +31,8 @@ contextBridge.exposeInMainWorld("claudeGLM", {
   getUsageSummary: (days) => ipcRenderer.invoke("get-usage-summary", days),
   getSessionStats: (sessionId, projectDir) =>
     ipcRenderer.invoke("get-session-stats", sessionId, projectDir),
+  resumeSession: (sessionId) => ipcRenderer.invoke("resume-session", sessionId),
+  getProxyPath: () => ipcRenderer.invoke("get-proxy-path"),
 
   // Events
   onProxyStatusChanged: (callback) => {
