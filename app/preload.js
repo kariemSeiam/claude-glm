@@ -13,14 +13,26 @@ contextBridge.exposeInMainWorld("claudeGLM", {
   getApiKey: () => ipcRenderer.invoke("get-api-key"),
   setApiKey: (key) => ipcRenderer.invoke("set-api-key", key),
 
-  // Platform info
+  // Platform/Version info
   getPlatform: () => ipcRenderer.invoke("get-platform"),
+  getClaudeVersion: () => ipcRenderer.invoke("get-claude-version"),
+  getNodeVersion: () => ipcRenderer.invoke("get-node-version"),
 
   // Window
   minimize: () => ipcRenderer.invoke("minimize-window"),
   close: () => ipcRenderer.invoke("close-window"),
   show: () => ipcRenderer.invoke("show-window"),
   quit: () => ipcRenderer.invoke("quit-app"),
+
+  // Session reading
+  getSessions: () => ipcRenderer.invoke("get-sessions"),
+  getSessionMessages: (sessionId, projectDir) =>
+    ipcRenderer.invoke("get-session-messages", sessionId, projectDir),
+  getUsageSummary: (days) => ipcRenderer.invoke("get-usage-summary", days),
+  getSessionStats: (sessionId, projectDir) =>
+    ipcRenderer.invoke("get-session-stats", sessionId, projectDir),
+  resumeSession: (sessionId) => ipcRenderer.invoke("resume-session", sessionId),
+  getProxyPath: () => ipcRenderer.invoke("get-proxy-path"),
 
   // Events
   onProxyStatusChanged: (callback) => {

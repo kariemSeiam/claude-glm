@@ -3,6 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self'; img-src 'self' data:;">
   <title>Claude GLM</title>
   <link rel="stylesheet" href="styles.css">
 </head>
@@ -53,42 +54,116 @@
       <span>API key not set — open Settings to add your Z.AI key</span>
     </div>
 
-    <!-- Server Card -->
-    <div class="server-card" id="serverCard">
-      <div class="server-row">
-        <div class="server-info">
-          <div class="status-indicator">
-            <div class="status-dot" id="statusDot"></div>
-            <div class="status-pulse" id="statusPulse"></div>
-          </div>
-          <div class="server-text">
-            <div class="server-title">Proxy Server</div>
-            <div class="server-subtitle">localhost:<span class="mono">9147</span></div>
-          </div>
-        </div>
-        <div class="server-meta">
-          <div class="status-label" id="statusLabel">Checking...</div>
-          <div class="uptime-label" id="uptimeLabel"></div>
-        </div>
-      </div>
-      <button class="server-btn" id="serverBtn">
-        <span class="server-btn-icon" id="serverBtnIcon">
-          <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-            <path d="M4 2.5v9l7.5-4.5L4 2.5z" fill="currentColor"/>
-          </svg>
-        </span>
-        <span id="serverBtnText">Start Server</span>
+    <!-- Tab Navigation -->
+    <div class="tab-bar">
+      <button class="tab-btn active" data-tab="launch">
+        <span class="tab-text">Launch</span>
+      </button>
+      <button class="tab-btn" data-tab="sessions">
+        <span class="tab-text">Sessions</span>
+      </button>
+      <button class="tab-btn" data-tab="usage">
+        <span class="tab-text">Usage</span>
       </button>
     </div>
 
-    <!-- Models Section -->
-    <div class="section-header">
-      <h2>Launch Claude Code</h2>
-      <span class="section-hint">Select a GLM model</span>
+    <!-- Tab Panels -->
+    <div class="tab-panels">
+
+      <!-- Launch Panel -->
+      <div class="tab-panel active" id="panel-launch">
+        <!-- Server Card -->
+        <div class="server-card" id="serverCard">
+          <div class="server-row">
+            <div class="server-info">
+              <div class="status-indicator">
+                <div class="status-dot" id="statusDot"></div>
+                <div class="status-pulse" id="statusPulse"></div>
+              </div>
+              <div class="server-text">
+                <div class="server-title">Proxy Server</div>
+                <div class="server-subtitle">localhost:<span class="mono">9147</span></div>
+              </div>
+            </div>
+            <div class="server-meta">
+              <div class="status-label" id="statusLabel">Checking...</div>
+              <div class="uptime-label" id="uptimeLabel"></div>
+            </div>
+          </div>
+          <button class="server-btn" id="serverBtn">
+            <span class="server-btn-icon" id="serverBtnIcon">
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                <path d="M4 2.5v9l7.5-4.5L4 2.5z" fill="currentColor"/>
+              </svg>
+            </span>
+            <span id="serverBtnText">Start Server</span>
+          </button>
+        </div>
+
+        <!-- Models Section -->
+        <div class="section-header">
+          <h2>Launch Claude Code</h2>
+          <span class="section-hint">Select a GLM model</span>
+        </div>
+
+        <div class="models-list" id="modelsList"></div>
+      </div>
+
+      <!-- Sessions Panel -->
+      <div class="tab-panel" id="panel-sessions">
+        <div class="panel-header">
+          <h2>Sessions</h2>
+          <span class="panel-hint">Recent Claude Code sessions</span>
+        </div>
+        <div class="sessions-list" id="sessionsList">
+          <div class="skeleton-loader">
+            <div class="skeleton-row"></div>
+            <div class="skeleton-row"></div>
+            <div class="skeleton-row"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Usage Panel -->
+      <div class="tab-panel" id="panel-usage">
+        <div class="panel-header">
+          <h2>Usage</h2>
+          <div class="period-selector">
+            <button class="period-btn" data-period="1">Today</button>
+            <button class="period-btn active" data-period="7">7 days</button>
+            <button class="period-btn" data-period="30">30 days</button>
+          </div>
+        </div>
+        <div class="usage-content" id="usageContent">
+          <div class="skeleton-loader">
+            <div class="skeleton-row"></div>
+            <div class="skeleton-row"></div>
+            <div class="skeleton-row"></div>
+          </div>
+        </div>
+      </div>
+
     </div>
 
-    <div class="models-list" id="modelsList"></div>
+  </div>
 
+  <!-- Session Detail Overlay -->
+  <div class="overlay hidden" id="sessionDetailOverlay">
+    <div class="session-detail-panel">
+      <div class="session-detail-header">
+        <h2 id="sessionDetailTitle">Session Details</h2>
+        <button class="titlebar-btn" id="sessionDetailCloseBtn">
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+            <path d="M4 4l6 6M10 4l-6 6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+          </svg>
+        </button>
+      </div>
+      <div class="session-detail-body" id="sessionDetailBody">
+      </div>
+      <div class="session-detail-footer">
+        <button class="resume-session-btn" id="resumeSessionBtn">Resume Session</button>
+      </div>
+    </div>
   </div>
 
   <!-- Settings Overlay -->

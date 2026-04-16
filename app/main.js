@@ -22,6 +22,7 @@ const http = require("http");
 const fs = require("fs");
 const zlib = require("zlib");
 const os = require("os");
+const sessionReader = require("./session-reader");
 
 // Suppress EPIPE crashes — child process pipes can break after exit
 process.on("uncaughtException", (err) => {
@@ -36,6 +37,7 @@ let proxyProcess = null;
 let proxyRunning = false;
 let startTime = null;
 let uptimeInterval = null;
+let cachedClaudeVersion = null;
 
 // ── Paths ──────────────────────────────────────────────
 const PROXY_PATH = path.resolve(__dirname, "..", "proxy.js");
@@ -110,6 +112,9 @@ function startProxy() {
         proxyRunning = true;
         startTime = Date.now();
         startUptimeTracker();
+        if (mainWindow && !mainWindow.isDestroyed()) {
+          mainWindow.webContents.send("proxy-status-changed", proxyRunning, getUptime());
+        }
         resolve({ success: true, message: "Proxy started" });
       }
     });
@@ -123,6 +128,9 @@ function startProxy() {
       proxyRunning = false;
       startTime = null;
       stopUptimeTracker();
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send("proxy-status-changed", proxyRunning, getUptime());
+      }
       if (!started) {
         reject(new Error(`Proxy exited with code ${code}`));
       }
@@ -131,6 +139,9 @@ function startProxy() {
     proxyProcess.on("error", (err) => {
       proxyProcess = null;
       proxyRunning = false;
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send("proxy-status-changed", proxyRunning, getUptime());
+      }
       reject(err);
     });
 
@@ -143,6 +154,9 @@ function startProxy() {
             proxyRunning = true;
             startTime = Date.now();
             startUptimeTracker();
+            if (mainWindow && !mainWindow.isDestroyed()) {
+              mainWindow.webContents.send("proxy-status-changed", proxyRunning, getUptime());
+            }
             resolve({ success: true, message: "Proxy started (detected)" });
           }
         });
@@ -161,6 +175,9 @@ function stopProxy() {
         proxyRunning = false;
         startTime = null;
         stopUptimeTracker();
+        if (mainWindow && !mainWindow.isDestroyed()) {
+          mainWindow.webContents.send("proxy-status-changed", proxyRunning, getUptime());
+        }
         resolve({ success: true, message: "Proxy stopped" });
       }, 500);
     } else {
@@ -168,6 +185,9 @@ function stopProxy() {
       proxyRunning = false;
       startTime = null;
       stopUptimeTracker();
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send("proxy-status-changed", proxyRunning, getUptime());
+      }
       resolve({ success: true, message: "Proxy stopped" });
     }
   });
@@ -202,6 +222,25 @@ function stopUptimeTracker() {
 // fnm creates session-temp symlinks under /run/user/.../fnm_multishells/ that
 // won't exist in a freshly spawned terminal. We resolve to the stable fnm path.
 let cachedClaudePath = null;
+
+function getClaudeVersion() {
+  if (cachedClaudeVersion) return cachedClaudeVersion;
+
+  try {
+    const claudeBin = resolveClaudePath();
+    const output = execSync(`"${claudeBin}" --version`, {
+      encoding: "utf-8",
+      timeout: 5000,
+      stdio: ["ignore", "pipe", "ignore"],
+    }).trim();
+    cachedClaudeVersion = output;
+    return output;
+  } catch (err) {
+    cachedClaudeVersion = "not found";
+    return "not found";
+  }
+}
+
 function resolveClaudePath() {
   if (cachedClaudePath) return cachedClaudePath;
 
@@ -268,8 +307,9 @@ function launchClaude(model) {
   // Keep terminal open after exit so errors are visible.
   // NOTE: No API key or env vars interpolated into this string —
   // they're passed via spawn env to avoid shell injection.
+  // Binary path is quoted to handle spaces/special characters.
   const shellCmd =
-    `${claudeBin} --model ${model} --dangerously-skip-permissions; ` +
+    `"${claudeBin}" --model ${model} --dangerously-skip-permissions; ` +
     `exec $SHELL`;
 
   // Terminal emulators in priority order — all use bash -l for proper env
@@ -469,7 +509,9 @@ function createWindow() {
   mainWindow.loadFile(path.join(__dirname, "renderer", "index.html"));
 
   mainWindow.on("close", (e) => {
-    if (app.quitting) return;
+    if (app.quitting) {
+      return;
+    }
     e.preventDefault();
     mainWindow.hide();
   });
@@ -529,14 +571,77 @@ function setupIPC() {
   ipcMain.handle("set-api-key", async (_, key) => { setApiKey(key); return { success: true }; });
   ipcMain.handle("get-platform", async () => process.platform);
   ipcMain.handle("get-proxy-path", async () => PROXY_PATH);
+  ipcMain.handle("get-claude-version", async () => getClaudeVersion());
+  ipcMain.handle("get-node-version", async () => process.version);
   ipcMain.handle("minimize-window", async () => { mainWindow?.hide(); });
   ipcMain.handle("close-window", async () => { mainWindow?.hide(); });
   ipcMain.handle("show-window", async () => { mainWindow?.show(); mainWindow?.focus(); });
   ipcMain.handle("quit-app", async () => { app.quitting = true; await stopProxy(); app.quit(); });
+
+  // Session reading
+  ipcMain.handle("get-sessions", async () => sessionReader.getAllSessions());
+  ipcMain.handle("get-session-messages", async (_, sessionId, projectDir) =>
+    sessionReader.getSessionMessages(sessionId, projectDir)
+  );
+  ipcMain.handle("get-usage-summary", async (_, days) =>
+    sessionReader.getUsageSummary(days || 7)
+  );
+  ipcMain.handle("get-session-stats", async (_, sessionId, projectDir) =>
+    sessionReader.getSessionStats(sessionId, projectDir)
+  );
+  ipcMain.handle("resume-session", async (_, sessionId) => {
+    if (!sessionId || !/^[a-f0-9-]+$/i.test(sessionId)) {
+      return { success: false, message: "Invalid session ID" };
+    }
+
+    const apiKey = getApiKey();
+    if (!apiKey) return { success: false, message: "API key not set" };
+
+    const claudeBin = resolveClaudePath();
+    const shellCmd = `"${claudeBin}" --resume ${sessionId}; exec $SHELL`;
+
+    const terminals = [
+      { cmd: "ghostty",       args: ["-e", "bash", "-l", "-c", shellCmd] },
+      { cmd: "kitty",         args: ["bash", "-l", "-c", shellCmd] },
+      { cmd: "alacritty",     args: ["-e", "bash", "-l", "-c", shellCmd] },
+      { cmd: "gnome-terminal", args: ["--", "bash", "-l", "-c", shellCmd] },
+      { cmd: "konsole",       args: ["-e", "bash", "-l", "-c", shellCmd] },
+      { cmd: "xdg-terminal-exec", args: ["bash", "-l", "-c", shellCmd] },
+    ];
+
+    const spawnEnv = {
+      ...process.env,
+      ANTHROPIC_BASE_URL: "http://localhost:9147",
+      ANTHROPIC_API_KEY: apiKey,
+    };
+
+    for (const term of terminals) {
+      try {
+        const child = spawn(term.cmd, term.args, {
+          detached: true,
+          stdio: "ignore",
+          env: spawnEnv,
+        });
+        child.unref();
+        return { success: true, message: `Resumed session ${sessionId.substring(0, 8)} via ${term.cmd}` };
+      } catch (err) {
+        continue;
+      }
+    }
+
+    return {
+      success: false,
+      message: "No terminal emulator found. Install ghostty, kitty, or gnome-terminal.",
+    };
+  });
 }
 
 // ── Single Instance ────────────────────────────────────
 const gotLock = app.requestSingleInstanceLock();
+
+// Initialize app.quitting flag BEFORE any handlers that might check it
+app.quitting = false;
+
 if (!gotLock) {
   app.quit();
 } else {
