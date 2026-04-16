@@ -24,6 +24,14 @@ contextBridge.exposeInMainWorld("claudeGLM", {
   show: () => ipcRenderer.invoke("show-window"),
   quit: () => ipcRenderer.invoke("quit-app"),
 
+  // Session reading
+  getSessions: () => ipcRenderer.invoke("get-sessions"),
+  getSessionMessages: (sessionId, projectDir) =>
+    ipcRenderer.invoke("get-session-messages", sessionId, projectDir),
+  getUsageSummary: (days) => ipcRenderer.invoke("get-usage-summary", days),
+  getSessionStats: (sessionId, projectDir) =>
+    ipcRenderer.invoke("get-session-stats", sessionId, projectDir),
+
   // Events
   onProxyStatusChanged: (callback) => {
     ipcRenderer.on("proxy-status-changed", (_, running, uptime) =>
