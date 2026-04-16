@@ -589,6 +589,51 @@ function setupIPC() {
   ipcMain.handle("get-session-stats", async (_, sessionId, projectDir) =>
     sessionReader.getSessionStats(sessionId, projectDir)
   );
+  ipcMain.handle("resume-session", async (_, sessionId) => {
+    if (!sessionId || !/^[a-f0-9-]+$/i.test(sessionId)) {
+      return { success: false, message: "Invalid session ID" };
+    }
+
+    const apiKey = getApiKey();
+    if (!apiKey) return { success: false, message: "API key not set" };
+
+    const claudeBin = resolveClaudePath();
+    const shellCmd = `"${claudeBin}" --resume ${sessionId}; exec $SHELL`;
+
+    const terminals = [
+      { cmd: "ghostty",       args: ["-e", "bash", "-l", "-c", shellCmd] },
+      { cmd: "kitty",         args: ["bash", "-l", "-c", shellCmd] },
+      { cmd: "alacritty",     args: ["-e", "bash", "-l", "-c", shellCmd] },
+      { cmd: "gnome-terminal", args: ["--", "bash", "-l", "-c", shellCmd] },
+      { cmd: "konsole",       args: ["-e", "bash", "-l", "-c", shellCmd] },
+      { cmd: "xdg-terminal-exec", args: ["bash", "-l", "-c", shellCmd] },
+    ];
+
+    const spawnEnv = {
+      ...process.env,
+      ANTHROPIC_BASE_URL: "http://localhost:9147",
+      ANTHROPIC_API_KEY: apiKey,
+    };
+
+    for (const term of terminals) {
+      try {
+        const child = spawn(term.cmd, term.args, {
+          detached: true,
+          stdio: "ignore",
+          env: spawnEnv,
+        });
+        child.unref();
+        return { success: true, message: `Resumed session ${sessionId.substring(0, 8)} via ${term.cmd}` };
+      } catch (err) {
+        continue;
+      }
+    }
+
+    return {
+      success: false,
+      message: "No terminal emulator found. Install ghostty, kitty, or gnome-terminal.",
+    };
+  });
 }
 
 // ── Single Instance ────────────────────────────────────
