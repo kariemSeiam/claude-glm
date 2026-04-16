@@ -13,8 +13,10 @@ contextBridge.exposeInMainWorld("claudeGLM", {
   getApiKey: () => ipcRenderer.invoke("get-api-key"),
   setApiKey: (key) => ipcRenderer.invoke("set-api-key", key),
 
-  // Platform info
+  // Platform/Version info
   getPlatform: () => ipcRenderer.invoke("get-platform"),
+  getClaudeVersion: () => ipcRenderer.invoke("get-claude-version"),
+  getNodeVersion: () => ipcRenderer.invoke("get-node-version"),
 
   // Window
   minimize: () => ipcRenderer.invoke("minimize-window"),
