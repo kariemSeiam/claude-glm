@@ -23,19 +23,37 @@ const MAX_BODY_SIZE = 50 * 1024 * 1024; // 50MB
 const server = http.createServer((req, res) => {
   let body = [];
   let bodySize = 0;
+  let bodyExceeded = false;
 
   req.on("data", (chunk) => {
+    if (bodyExceeded) {
+      return;
+    }
     bodySize += chunk.length;
     if (bodySize > MAX_BODY_SIZE) {
+      bodyExceeded = true;
       req.destroy();
       if (!res.headersSent) {
         res.writeHead(413, { "content-type": "application/json" });
       }
       res.end(JSON.stringify({ error: "payload_too_large", message: `Request body exceeds ${MAX_BODY_SIZE / 1024 / 1024}MB limit` }));
+      return;
     }
     body.push(chunk);
   });
+
+  req.on("error", (err) => {
+    if (err.code === "ECONNRESET") {
+      console.log(`[proxy] Client disconnected: ${req.method} ${req.url}`);
+    } else {
+      console.error(`[proxy] Request error: ${err.message}`);
+    }
+  });
+
   req.on("end", () => {
+    if (bodyExceeded) {
+      return;
+    }
     body = Buffer.concat(body);
 
     // Rewrite x-api-key → Authorization: Bearer (the only translation needed)
@@ -59,19 +77,20 @@ const server = http.createServer((req, res) => {
       rejectUnauthorized: false,
     };
 
-    console.log(`[proxy] ${req.method} ${targetPath}`);
+    console.log(`[proxy] ${req.method} ${targetPath} — processing`);
 
     const proxyReq = https.request(options, (proxyRes) => {
+      console.log(`[proxy] ${req.method} ${targetPath} — ${proxyRes.statusCode}`);
       res.writeHead(proxyRes.statusCode, proxyRes.headers);
       proxyRes.pipe(res);
     });
 
-    proxyReq.setTimeout(30000, () => {
+    proxyReq.setTimeout(300000, () => {
       proxyReq.destroy();
       if (!res.headersSent) {
         res.writeHead(504, { "content-type": "application/json" });
       }
-      res.end(JSON.stringify({ error: "gateway_timeout", message: "Upstream request timed out after 30s" }));
+      res.end(JSON.stringify({ error: "gateway_timeout", message: "Upstream request timed out after 5 minutes" }));
     });
 
     proxyReq.on("error", (err) => {
@@ -86,6 +105,22 @@ const server = http.createServer((req, res) => {
     proxyReq.end();
   });
 });
+
+function gracefulShutdown(signal) {
+  console.log(`\n[proxy] Received ${signal}, closing server gracefully...`);
+  server.close(() => {
+    console.log("[proxy] Server closed. Goodbye.");
+    process.exit(0);
+  });
+
+  setTimeout(() => {
+    console.error("[proxy] Forced shutdown after timeout");
+    process.exit(1);
+  }, 10000);
+}
+
+process.on("SIGTERM", () => gracefulShutdown("SIGTERM"));
+process.on("SIGINT", () => gracefulShutdown("SIGINT"));
 
 server.listen(PORT, () => {
   console.log(`

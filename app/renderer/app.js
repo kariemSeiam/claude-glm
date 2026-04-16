@@ -240,10 +240,11 @@ async function handleCopyCommand(modelId, btnEl) {
 
     const platform = await window.claudeGLM.getPlatform();
     let cmd;
+    // Use environment variable reference instead of literal key for security
     if (platform === "win32") {
-      cmd = `$env:ANTHROPIC_API_KEY="${apiKey}"; $env:ANTHROPIC_BASE_URL="http://localhost:9147"; claude --model ${modelId} --dangerously-skip-permissions`;
+      cmd = `$env:ANTHROPIC_API_KEY="$env:ZAI_API_KEY"; $env:ANTHROPIC_BASE_URL="http://localhost:9147"; claude --model ${modelId} --dangerously-skip-permissions`;
     } else {
-      cmd = `ANTHROPIC_API_KEY=${apiKey} ANTHROPIC_BASE_URL=http://localhost:9147 claude --model ${modelId} --dangerously-skip-permissions`;
+      cmd = `ANTHROPIC_API_KEY=$ZAI_API_KEY ANTHROPIC_BASE_URL=http://localhost:9147 claude --model ${modelId} --dangerously-skip-permissions`;
     }
 
     await navigator.clipboard.writeText(cmd);
@@ -252,7 +253,7 @@ async function handleCopyCommand(modelId, btnEl) {
     btnEl.classList.add("copied");
     setTimeout(() => btnEl.classList.remove("copied"), 1500);
 
-    showToast("Command copied", "success");
+    showToast("Command copied — set $ZAI_API_KEY env var first", "success");
   } catch (err) {
     showToast("Failed to copy", "error");
   }
@@ -363,14 +364,20 @@ async function loadSettings() {
     dom.proxyPathDisplay.textContent = proxyPath;
   } catch {}
 
-  // Show versions
+  // Show versions — fetch from main process via IPC
   try {
-    dom.nodeVersion.textContent =
-      typeof process !== "undefined" ? process.version : "N/A (renderer)";
+    const nodeVer = await window.claudeGLM.getNodeVersion();
+    dom.nodeVersion.textContent = nodeVer || "—";
   } catch {
     dom.nodeVersion.textContent = "—";
   }
-  dom.claudeVersion.textContent = "—";
+
+  try {
+    const claudeVer = await window.claudeGLM.getClaudeVersion();
+    dom.claudeVersion.textContent = claudeVer || "—";
+  } catch {
+    dom.claudeVersion.textContent = "—";
+  }
 }
 
 dom.saveApiKeyBtn.addEventListener("click", async () => {
@@ -408,6 +415,22 @@ window.claudeGLM.onProxyStatusChanged((running, uptime) => {
 
 window.claudeGLM.onUptimeUpdate((uptime) => {
   dom.uptimeLabel.textContent = uptime;
+});
+
+// ── Keyboard Shortcuts ───────────────────────────────
+document.addEventListener("keydown", (e) => {
+  // Escape: close settings if open
+  if (e.key === "Escape" && !dom.settingsOverlay.classList.contains("hidden")) {
+    dom.settingsOverlay.classList.add("hidden");
+    return;
+  }
+
+  // Ctrl/Cmd + ,: open settings
+  if ((e.ctrlKey || e.metaKey) && e.key === ",") {
+    e.preventDefault();
+    dom.settingsOverlay.classList.remove("hidden");
+    loadSettings();
+  }
 });
 
 // ── Init ────────────────────────────────────────────
